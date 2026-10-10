@@ -2,6 +2,9 @@
 
 > 感受 MacOS 上轻量极致的剪切板体验
 
+
+[!screenshot](./docs/preview.png)
+
 ## 特点
 
 - 智能提取 URL 数字等信息
