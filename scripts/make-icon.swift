@@ -5,8 +5,16 @@ try FileManager.default.createDirectory(at: directory, withIntermediateDirectori
 for size in [16, 32, 128, 256, 512] {
     for scale in [1, 2] {
         let pixels = size * scale
-        let image = NSImage(size: NSSize(width: pixels, height: pixels))
-        image.lockFocus()
+        // Draw into explicit pixels; NSImage.lockFocus follows the screen's Retina scale.
+        guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels,
+                                           bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                                           isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
+            fatalError("无法创建 \(pixels)px 图标画布")
+        }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        context.shouldAntialias = true
         let p = CGFloat(pixels)
         let base = NSBezierPath(roundedRect: NSRect(x: p * 0.055, y: p * 0.055, width: p * 0.89, height: p * 0.89), xRadius: p * 0.22, yRadius: p * 0.22)
         NSColor.black.setFill()
@@ -23,8 +31,8 @@ for size in [16, 32, 128, 256, 512] {
         for y in [0.56, 0.445, 0.33] {
             NSBezierPath(roundedRect: NSRect(x: p * 0.385, y: p * y, width: p * (y == 0.33 ? 0.145 : 0.23), height: p * 0.028), xRadius: p * 0.014, yRadius: p * 0.014).fill()
         }
-        image.unlockFocus()
-        let bitmap = NSBitmapImageRep(data: image.tiffRepresentation!)!
+        context.flushGraphics()
+        NSGraphicsContext.restoreGraphicsState()
         let suffix = scale == 2 ? "@2x" : ""
         try bitmap.representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent("icon_\(size)x\(size)\(suffix).png"))
     }

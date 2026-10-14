@@ -17,4 +17,5 @@ cp -R "$TASK_BINARY_DIR/BitClipboard_BitClipboard.bundle" "$TASK_BUNDLE/Contents
 swift "$TASK_ROOT/scripts/make-icon.swift" "$TASK_ROOT/.build/AppIcon.iconset"
 iconutil -c icns "$TASK_ROOT/.build/AppIcon.iconset" -o "$TASK_BUNDLE/Contents/Resources/AppIcon.icns"
 codesign --force --sign - "$TASK_BUNDLE"
+touch "$TASK_BUNDLE"
 echo "应用已生成：$TASK_BUNDLE"
