@@ -1,0 +1,184 @@
+{
+  "documents": [
+    {
+      "id": "python",
+      "text": "def add(a, b):\n    return a + b"
+    },
+    {
+      "id": "javascript",
+      "text": "const sum = (a, b) => a + b;\nconsole.log(sum(1, 2));"
+    },
+    {
+      "id": "swift",
+      "text": "func greet(name: String) -> String {\n    return \"Hello, \\(name)\"\n}"
+    },
+    {
+      "id": "sql",
+      "text": "SELECT name, email FROM users WHERE active = 1;"
+    },
+    {
+      "id": "shell",
+      "text": "git status --short\ngit add .\ngit commit -m \"fix bug\""
+    },
+    {
+      "id": "html",
+      "text": "<div class=\"card\"><h1>Hello</h1></div>"
+    },
+    {
+      "id": "css",
+      "text": ".card { color: #FFFFFF; padding: 16px; }"
+    },
+    {
+      "id": "json",
+      "text": "{\"server\": \"localhost\", \"port\": 5432, \"debug\": true}"
+    },
+    {
+      "id": "ipv4",
+      "text": "192.168.1.1\n8.8.8.8\n114.114.114.114"
+    },
+    {
+      "id": "ipv6",
+      "text": "2606:4700:4700::1111"
+    },
+    {
+      "id": "color",
+      "text": "#FFFFFF"
+    },
+    {
+      "id": "website",
+      "text": "paperpass.com"
+    },
+    {
+      "id": "weather",
+      "text": "上海明天下雨，出门记得带伞"
+    },
+    {
+      "id": "meeting",
+      "text": "明天上午十点在办公室讨论项目进度"
+    },
+    {
+      "id": "database",
+      "text": "PostgreSQL: connection refused. Check hostname and port 5432."
+    },
+    {
+      "id": "dinner",
+      "text": "今晚下厨，做番茄炒蛋和米饭"
+    },
+    {
+      "id": "japanese",
+      "text": "故郷の桜が咲いた"
+    },
+    {
+      "id": "phone",
+      "text": "联系人：张三，电话 13800138000"
+    }
+  ],
+  "queries": [
+    {
+      "text": "代码",
+      "relevant": [
+        "python",
+        "javascript",
+        "swift",
+        "sql",
+        "shell",
+        "html",
+        "css",
+        "json"
+      ]
+    },
+    {
+      "text": "code",
+      "relevant": [
+        "python",
+        "javascript",
+        "swift",
+        "sql",
+        "shell",
+        "html",
+        "css",
+        "json"
+      ]
+    },
+    {
+      "text": "查天气",
+      "relevant": [
+        "weather"
+      ]
+    },
+    {
+      "text": "开会安排",
+      "relevant": [
+        "meeting"
+      ]
+    },
+    {
+      "text": "怎么解决数据库连不上",
+      "relevant": [
+        "database"
+      ]
+    },
+    {
+      "text": "晚上吃什么",
+      "relevant": [
+        "dinner"
+      ]
+    },
+    {
+      "text": "电话号码",
+      "relevant": [
+        "phone"
+      ]
+    },
+    {
+      "text": "日语句子",
+      "relevant": [
+        "japanese"
+      ]
+    },
+    {
+      "text": "程序片段",
+      "relevant": [
+        "python",
+        "javascript",
+        "swift",
+        "sql",
+        "shell",
+        "html",
+        "css",
+        "json"
+      ]
+    },
+    {
+      "text": "programming snippets",
+      "relevant": [
+        "python",
+        "javascript",
+        "swift",
+        "sql",
+        "shell",
+        "html",
+        "css",
+        "json"
+      ]
+    },
+    {
+      "text": "色值",
+      "relevant": [
+        "color",
+        "css"
+      ]
+    },
+    {
+      "text": "求和函数",
+      "relevant": [
+        "python",
+        "javascript"
+      ]
+    },
+    {
+      "text": "完全没有的东西 xyz987",
+      "relevant": []
+    }
+  ]
+}
