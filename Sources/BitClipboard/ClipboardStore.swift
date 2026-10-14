@@ -2,7 +2,9 @@ import AppKit
 import Combine
 import BitClipboardCore
 
+@MainActor
 final class ClipboardStore: ObservableObject {
+    let semanticSearch: SemanticSearchController
     @Published private(set) var items: [ClipboardItem] = []
     @Published var error: String?
     @Published var copiedID: UUID?
@@ -25,14 +27,20 @@ final class ClipboardStore: ObservableObject {
     private var feedbackReset: DispatchWorkItem?
 
     init() {
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("BitClipboard", isDirectory: true)
+        semanticSearch = SemanticSearchController(directory: directory)
         do {
             let support = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             repository = try HistoryRepository(directory: support.appendingPathComponent("BitClipboard", isDirectory: true))
             items = repository?.items ?? []
+            semanticSearch.update(items: items)
         } catch {
             self.error = "无法读取本地历史：\(error.localizedDescription)"
         }
-        timer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in self?.poll() }
+        timer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.poll() }
+        }
         if let timer { RunLoop.main.add(timer, forMode: .common) }
     }
 
@@ -101,6 +109,7 @@ final class ClipboardStore: ObservableObject {
         do {
             try action()
             items = repository?.items ?? []
+            semanticSearch.update(items: items)
         } catch { self.error = "保存失败：\(error.localizedDescription)" }
     }
 }

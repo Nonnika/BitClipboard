@@ -3,6 +3,7 @@ import SwiftUI
 import Carbon
 
 @main
+@MainActor
 enum BitClipboardMain {
     static func main() {
         let app = NSApplication.shared
@@ -13,6 +14,7 @@ enum BitClipboardMain {
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem!
     private let popover = NSPopover()
@@ -47,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         ) { [weak self] _ in
-            self?.popover.performClose(nil)
+            Task { @MainActor in self?.popover.performClose(nil) }
         }
     }
 
@@ -82,7 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         InstallEventHandler(GetApplicationEventTarget(), { _, _, context in
             guard let context else { return OSStatus(eventNotHandledErr) }
             let delegate = Unmanaged<AppDelegate>.fromOpaque(context).takeUnretainedValue()
-            delegate.togglePopover()
+            Task { @MainActor in delegate.togglePopover() }
             return noErr
         }, 1, &type, pointer, &eventHandler)
         let id = EventHotKeyID(signature: 0x42434C50, id: 1)
@@ -91,6 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        store.semanticSearch.shutdown()
         stopDismissalMonitoring()
         if let hotKey { UnregisterEventHotKey(hotKey) }
         if let eventHandler { RemoveEventHandler(eventHandler) }

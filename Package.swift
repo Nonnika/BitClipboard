@@ -7,7 +7,7 @@ let package = Package(
     products: [.executable(name: "BitClipboard", targets: ["BitClipboard"])],
     targets: [
         .target(name: "BitClipboardCore"),
-        .executableTarget(name: "BitClipboard", dependencies: ["BitClipboardCore"]),
+        .executableTarget(name: "BitClipboard", dependencies: ["BitClipboardCore"], resources: [.copy("SemanticRuntime")]),
         .testTarget(name: "BitClipboardCoreTests", dependencies: ["BitClipboardCore"])
     ]
 )

@@ -7,3 +7,4 @@ if [[ -z "${DEVELOPER_DIR:-}" && "$(xcode-select -p)" == *CommandLineTools* && -
 fi
 export CLANG_MODULE_CACHE_PATH="$TASK_ROOT/.build/clang-cache"
 swift test --disable-sandbox --cache-path "$TASK_ROOT/.build/cache"
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tests/SemanticRuntimeTests -v

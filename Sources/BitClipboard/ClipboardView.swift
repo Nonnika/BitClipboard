@@ -20,10 +20,10 @@ private enum HistoryFilter: String, CaseIterable {
 
 struct ClipboardView: View {
     @ObservedObject var store: ClipboardStore
+    @ObservedObject private var searchModel: SemanticSearchController
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var filterSelection
-    @State private var query = ""
     @State private var filter: HistoryFilter = .all
     @State private var preview: ClipboardItem?
     @State private var hoveredItem = HoveredHistoryItem()
@@ -32,13 +32,15 @@ struct ClipboardView: View {
     @State private var showSearch = false
     @FocusState private var searchFocused: Bool
 
+    init(store: ClipboardStore) {
+        self.store = store
+        _searchModel = ObservedObject(wrappedValue: store.semanticSearch)
+    }
+
+    private var query: String { searchModel.query }
+
     private var results: [ClipboardItem] {
-        store.items.filter {
-            filter.matches($0) && (query.isEmpty || $0.text.localizedCaseInsensitiveContains(query) || $0.source.localizedCaseInsensitiveContains(query))
-        }.sorted { lhs, rhs in
-            if lhs.isPinned != rhs.isPinned { return lhs.isPinned }
-            return lhs.createdAt > rhs.createdAt
-        }
+        SearchRanking.results(items: store.items.filter { filter.matches($0) }, query: query, semanticScores: searchModel.scores)
     }
 
     private var contentAnimation: Animation? {
@@ -56,6 +58,14 @@ struct ClipboardView: View {
         let visibleItems = results
         return VStack(spacing: 0) {
             toolbar
+            if !query.isEmpty {
+                HStack(spacing: 6) {
+                    if searchModel.isSearching { ProgressView().controlSize(.mini) }
+                    Text(searchModel.status).font(.system(size: 10)).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("清除") { searchModel.query = "" }.buttonStyle(.plain).font(.system(size: 10))
+                }.padding(.horizontal, 14).padding(.vertical, 6)
+            }
             if let error = store.error {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.secondary)
@@ -146,18 +156,21 @@ struct ClipboardView: View {
     }
 
     private var search: some View {
-        HStack(spacing: 9) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("搜索内容或来源应用", text: $query).textFieldStyle(.plain).font(.system(size: 12)).focused($searchFocused)
-                .onSubmit { showSearch = false }
-            if !query.isEmpty {
-                Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }.buttonStyle(.plain)
-            } else {
-                Text("⌘ F").font(.system(size: 10)).foregroundStyle(.tertiary)
-            }
-        }.padding(.horizontal, 12).frame(height: 37)
-            .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.primary.opacity(0.035)))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 9) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("描述想找的内容或输入关键词", text: $searchModel.query).textFieldStyle(.plain).font(.system(size: 12)).focused($searchFocused)
+                    .onSubmit { showSearch = false }
+                if !query.isEmpty {
+                    Button { searchModel.query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }.buttonStyle(.plain)
+                } else {
+                    Text("⌘ F").font(.system(size: 10)).foregroundStyle(.tertiary)
+                }
+            }.padding(.horizontal, 12).frame(height: 37)
+                .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.primary.opacity(0.035)))
+            Text(searchModel.status).font(.system(size: 10)).foregroundStyle(.secondary)
+        }
     }
 
     private var filters: some View {
@@ -180,7 +193,7 @@ struct ClipboardView: View {
     }
 
     private var emptyState: some View {
-        Text(!query.isEmpty ? "没有找到相关内容" :
+        Text(!query.isEmpty ? (searchModel.isSearching ? "正在查找相关内容…" : "没有找到相关内容") :
                 store.items.isEmpty ? "你还没有复制任何内容" :
                 filter == .pinned ? "还没有收藏任何内容" : "这个分类还没有内容")
             .font(.system(size: 13)).foregroundStyle(.secondary)
@@ -382,8 +395,13 @@ private struct PreviewView: View {
 
 private struct SettingsView: View {
     @ObservedObject var store: ClipboardStore
+    @ObservedObject private var searchModel: SemanticSearchController
     @Environment(\.dismiss) private var dismiss
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    init(store: ClipboardStore) {
+        self.store = store
+        _searchModel = ObservedObject(wrappedValue: store.semanticSearch)
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
@@ -391,30 +409,74 @@ private struct SettingsView: View {
                 Spacer()
                 Button("完成") { dismiss() }
             }
-            Toggle("自动记录剪贴板", isOn: Binding(get: { !store.isPaused }, set: { store.isPaused = !$0 }))
-            Toggle("登录时启动", isOn: $launchAtLogin).onChange(of: launchAtLogin) { enabled in
-                do {
-                    if enabled { try SMAppService.mainApp.register() }
-                    else { try SMAppService.mainApp.unregister() }
-                } catch {
-                    launchAtLogin = SMAppService.mainApp.status == .enabled
-                    store.error = "登录启动设置失败：\(error.localizedDescription)"
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Toggle("自动记录剪贴板", isOn: Binding(get: { !store.isPaused }, set: { store.isPaused = !$0 }))
+                    Toggle("登录时启动", isOn: $launchAtLogin).onChange(of: launchAtLogin) { enabled in
+                        do {
+                            if enabled { try SMAppService.mainApp.register() }
+                            else { try SMAppService.mainApp.unregister() }
+                        } catch {
+                            launchAtLogin = SMAppService.mainApp.status == .enabled
+                            store.error = "登录启动设置失败：\(error.localizedDescription)"
+                        }
+                    }
+                    Picker("历史记录上限", selection: $store.historyLimit) {
+                        Text("100 条").tag(100)
+                        Text("200 条").tag(200)
+                        Text("500 条").tag(500)
+                        Text("1,000 条").tag(1000)
+                    }
+                    Divider()
+                    modelSettings
+                    Divider()
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("你的内容，留在你的 Mac").font(.system(size: 12, weight: .semibold))
+                        Text("历史记录保存在本机，不上传至云端。收藏不受数量限制。会忽略标记为敏感或临时的剪贴板内容；未标记的密码等文字仍可能被记录，可随时暂停。")
+                            .font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(4)
+                        Text("唤起面板  ⌃⌥V    ·    快速复制  ⌘1–9").font(.system(size: 10, design: .monospaced)).foregroundStyle(accent)
+                    }
+                    Text("BitClipboard 1.0.0").font(.system(size: 10)).foregroundStyle(.tertiary)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }.padding(24).frame(width: 380, height: 560).tint(accent)
+    }
+
+    private var modelSettings: some View {
+        VStack(alignment: .leading, spacing: 8) {
+                Toggle("自然语言语义搜索", isOn: $searchModel.enabled)
+                Text("Google EmbeddingGemma 2 · 本机运行\n支持文字和链接，例如“关于会议安排的内容”。首次安装需要联网下载模型，搜索时保持离线。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(3)
+                if searchModel.isInstalling {
+                    VStack(alignment: .leading, spacing: 6) {
+                        let progress = searchModel.installationProgress
+                        HStack {
+                            Text(progress?.title ?? "准备安装环境").font(.system(size: 11))
+                            Spacer()
+                            if let fraction = progress?.fraction {
+                                Text("\(Int(fraction * 100))%")
+                                    .font(.system(size: 11, design: .monospaced)).monospacedDigit()
+                            }
+                        }
+                        if let fraction = progress?.fraction {
+                            ProgressView(value: fraction).progressViewStyle(.linear)
+                        } else { ProgressView().controlSize(.small) }
+                        Text(progress?.detail ?? "正在准备，请稍候…")
+                            .font(.system(size: 10)).foregroundStyle(.secondary)
+                        Text("关闭设置后会继续下载，重新打开可查看进度。")
+                            .font(.system(size: 10)).foregroundStyle(.secondary)
+                    }.padding(10).background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+                } else if let error = searchModel.installationError {
+                    Text(error).font(.system(size: 11)).foregroundStyle(.red)
+                } else {
+                    Label(searchModel.ready ? "本地模型已就绪" : "本地模型尚未安装", systemImage: searchModel.ready ? "checkmark.circle" : "arrow.down.circle")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
-            }
-            Picker("历史记录上限", selection: $store.historyLimit) {
-                Text("100 条").tag(100)
-                Text("200 条").tag(200)
-                Text("500 条").tag(500)
-                Text("1,000 条").tag(1000)
-            }
-            Divider()
-            VStack(alignment: .leading, spacing: 8) {
-                Text("你的内容，留在你的 Mac").font(.system(size: 12, weight: .semibold))
-                Text("历史记录保存在本机，不上传至云端。收藏不受数量限制。会忽略标记为敏感或临时的剪贴板内容；未标记的密码等文字仍可能被记录，可随时暂停。")
-                    .font(.system(size: 11)).foregroundStyle(.secondary).lineSpacing(4)
-                Text("唤起面板  ⌃⌥V    ·    快速复制  ⌘1–9").font(.system(size: 10, design: .monospaced)).foregroundStyle(accent)
-            }
-            Text("BitClipboard 1.0.0").font(.system(size: 10)).foregroundStyle(.tertiary)
-        }.padding(24).frame(width: 380).tint(accent)
+                HStack {
+                    Button(searchModel.isInstalling ? "正在安装…" : searchModel.installationError != nil ? "重试安装" : searchModel.ready ? "重新安装模型" : "下载并安装模型") { searchModel.install() }
+                        .disabled(searchModel.isInstalling)
+                    Button("安装日志") { searchModel.openInstallLog() }
+                }
+        }
     }
 }
